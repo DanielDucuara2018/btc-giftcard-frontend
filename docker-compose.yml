@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+      target: dev
+    networks:
+      btc-giftcard_gift_card_bridge:
+        ipv4_address: 169.254.12.10
+        aliases:
+          - "btc-giftcard-frontend.app"
+    ports:
+      - 3300:3300
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+    env_file:
+      - .env
+
+  nginx:
+    image: nginx:alpine
+    networks:
+      btc-giftcard_gift_card_bridge:
+        ipv4_address: 169.254.12.11
+        aliases:
+          - "btc-giftcard-nginx.app"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-dev.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/ssl/nginx-selfsigned.crt:/etc/ssl/certs/nginx-selfsigned.crt
+      - ./nginx/ssl/nginx-selfsigned.key:/etc/ssl/private/nginx-selfsigned.key
+      - ./nginx/ssl/dhparam.pem:/etc/ssl/certs/dhparam.pem
+    depends_on:
+      - app
+
+networks:
+  btc-giftcard_gift_card_bridge:
+    external: true
