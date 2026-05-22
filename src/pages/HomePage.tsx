@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import BitcoinGiftCard from '../components/BitcoinGiftCard';
+import BitcoinGiftCard, { GiftCardSize } from '../components/BitcoinGiftCard';
 
 const features = [
     {
@@ -25,11 +26,23 @@ const features = [
 ];
 
 const HomePage = () => {
+    const [cardSize, setCardSize] = useState<GiftCardSize>('lg');
+
+    useEffect(() => {
+        const update = () => {
+            const w = window.innerWidth;
+            setCardSize(w < 420 ? 'sm' : w < 640 ? 'md' : 'lg');
+        };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
+
     return (
         <div className="flex flex-col">
 
             {/* ── Hero ── */}
-            <section className="py-20 px-4 bg-white">
+            <section className="py-20 px-4 bg-white overflow-hidden">
                 <div className="max-w-5xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-12 lg:gap-16">
 
                     {/* Left: copy + CTAs */}
@@ -64,7 +77,11 @@ const HomePage = () => {
 
                     {/* Right: 3D gift card */}
                     <div className="flex-1 flex justify-center items-center">
-                        <BitcoinGiftCard size="lg" interactive />
+                        <div className="relative">
+                            {/* Soft ambient glow — anchors the card to the section */}
+                            <div className="absolute -inset-12 rounded-full bg-btc-orange/[0.06] blur-3xl pointer-events-none" />
+                            <BitcoinGiftCard size={cardSize} interactive />
+                        </div>
                     </div>
                 </div>
             </section>

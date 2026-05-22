@@ -10,6 +10,7 @@
 
 # production
 **/build
+**/build-output
 
 # temporary files
 **/tmp

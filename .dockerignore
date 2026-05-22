@@ -1,0 +1,11 @@
+node_modules
+build
+build-output
+.env
+.env.local
+.env.production.local
+.env.development.local
+npm-debug.log*
+.DS_Store
+nginx/ssl/*.crt
+nginx/ssl/*.key

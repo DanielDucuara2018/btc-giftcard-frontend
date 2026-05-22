@@ -1,0 +1,51 @@
+# Dockerfile optimized for cloud storage + CDN deployment
+# Builds static assets that can be uploaded to GCS, S3, Azure Blob, etc.
+# NOTE: Run from the repository root:
+#   docker build -f Dockerfile.cloud .
+
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Build arguments for API configuration
+ARG VITE_BTC_GIFTCARD_API_URL_ENV
+ARG PUBLIC_URL
+
+# Production environment variables
+ENV NODE_ENV=production
+ENV GENERATE_SOURCEMAP=false
+ENV PUBLIC_URL=${PUBLIC_URL}
+ENV VITE_BTC_GIFTCARD_API_URL_ENV=${VITE_BTC_GIFTCARD_API_URL_ENV}
+
+# Update packages for security
+RUN apk update && apk upgrade && apk add --no-cache git
+
+# Copy package files first for better layer caching
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies needed for build tools)
+# --include=dev ensures devDeps are installed even when NODE_ENV=production
+RUN npm install --include=dev && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Build the application with production optimizations
+# (tsc type-checking is skipped here — run it as a separate CI step)
+RUN ./node_modules/.bin/vite build
+
+# Pre-compress static assets for CDN delivery
+RUN find /app/build -type f -name "*.js"   -exec gzip -k9 {} \; && \
+    find /app/build -type f -name "*.css"  -exec gzip -k9 {} \; && \
+    find /app/build -type f -name "*.html" -exec gzip -k9 {} \; && \
+    find /app/build -type f -name "*.json" -exec gzip -k9 {} \;
+
+# ── Artifact stage: only the build output ──────────────────────────────────
+FROM scratch AS artifacts
+COPY --from=builder /app/build /build
+
+# ── Verification stage ──────────────────────────────────────────────────────
+FROM alpine:latest AS verify
+RUN apk add --no-cache file
+COPY --from=builder /app/build /build
+RUN ls -la /build && echo "Build verification complete. Files ready for CDN deployment."

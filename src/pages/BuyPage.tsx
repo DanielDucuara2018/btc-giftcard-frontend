@@ -17,7 +17,7 @@ import { CreateCardRequest, FiatCurrency, PurchaseOrderItem } from '../types';
 import api from '../Api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBanner from '../components/ErrorBanner';
-import BitcoinGiftCard from '../components/BitcoinGiftCard';
+import BitcoinGiftCard, { GiftCardSize } from '../components/BitcoinGiftCard';
 
 const PRESET_AMOUNTS_EUR = [
     { cents: 2500, label: '€25' },
@@ -45,6 +45,14 @@ const BuyPage = () => {
     const [localCurrency, setLocalCurrency] = useState<FiatCurrency>(fiatCurrency);
     const [customAmount, setCustomAmount] = useState('');
     const [customError, setCustomError] = useState('');
+    const [cardSize, setCardSize] = useState<GiftCardSize>('md');
+
+    useEffect(() => {
+        const update = () => setCardSize(window.innerWidth < 420 ? 'sm' : 'md');
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
 
     const presets = localCurrency === 'USD' ? PRESET_AMOUNTS_USD : PRESET_AMOUNTS_EUR;
     const symbol = localCurrency === 'USD' ? '$' : '€';
@@ -140,7 +148,7 @@ const BuyPage = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="max-w-2xl mx-auto px-4 py-6 sm:py-12">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Buy a Bitcoin Gift Card</h1>
             <p className="text-gray-500 mb-8">
                 Select an amount, enter your email, and pay via Stripe. Your card code arrives
@@ -148,9 +156,9 @@ const BuyPage = () => {
             </p>
 
             {/* 3D card preview */}
-            <div className="flex flex-col items-center gap-3 mb-8">
+            <div className="flex flex-col items-center gap-3 mb-8 py-4">
                 <BitcoinGiftCard
-                    size="md"
+                    size={cardSize}
                     interactive
                     amount={totalCents > 0 ? `€${(totalCents / 100).toFixed(2)}` : undefined}
                 />
