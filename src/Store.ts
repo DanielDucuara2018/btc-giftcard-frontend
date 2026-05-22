@@ -6,7 +6,7 @@ import appReducer from './reducers/appReducer';
 const persistConfig = {
     key: 'btc-giftcard',
     storage,
-    whitelist: ['purchaseOrder'],
+    whitelist: ['purchaseOrder', 'lastPurchase'],
 };
 
 const persistedReducer = persistReducer(persistConfig, appReducer);

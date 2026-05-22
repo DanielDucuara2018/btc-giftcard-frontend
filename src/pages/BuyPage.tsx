@@ -43,6 +43,7 @@ const BuyPage = () => {
 
     const [localEmail, setLocalEmail] = useState(purchaseEmail);
     const [localCurrency, setLocalCurrency] = useState<FiatCurrency>(fiatCurrency);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer'>('card');
     const [customAmount, setCustomAmount] = useState('');
     const [customError, setCustomError] = useState('');
     const [cardSize, setCardSize] = useState<GiftCardSize>('md');
@@ -131,6 +132,7 @@ const BuyPage = () => {
                     fiat_amount_cents: i.fiat_amount_cents,
                     quantity: i.quantity,
                 })),
+                payment_method: paymentMethod,
                 fiat_currency: localCurrency,
                 purchase_email: localEmail.trim(),
             };
@@ -138,8 +140,10 @@ const BuyPage = () => {
             const res = await api.post('/cards', req);
             dispatch(setLastPurchase(res.data));
             dispatch(clearOrder());
-            // Redirect to Stripe checkout
-            window.location.href = res.data.checkout_url;
+            // Redirect to Stripe checkout (card) or show SEPA reference (bank_transfer)
+            if (res.data.checkout_url) {
+                window.location.href = res.data.checkout_url;
+            }
         } catch (err: any) {
             dispatch(setError(err.message || 'Failed to create checkout session.'));
         } finally {
@@ -252,6 +256,46 @@ const BuyPage = () => {
                 </div>
             </div>
 
+            {/* Payment method */}
+            <div className="card-panel mb-6">
+                <label className="block text-gray-700 text-sm font-medium mb-3">
+                    Payment method
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                    {/* Card */}
+                    <button
+                        type="button"
+                        onClick={() => setPaymentMethod('card')}
+                        className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
+                            paymentMethod === 'card'
+                                ? 'border-btc-orange bg-btc-orange/5 shadow-sm'
+                                : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                        }`}
+                    >
+                        <svg className="w-5 h-5 flex-shrink-0 text-btc-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-semibold text-gray-900">Card</p>
+                            <p className="text-xs text-gray-400">Visa / Mastercard</p>
+                        </div>
+                    </button>
+                    {/* Bank Transfer — coming soon */}
+                    <div className="relative flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 opacity-50 cursor-not-allowed select-none">
+                        <svg className="w-5 h-5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-semibold text-gray-500">Bank Transfer</p>
+                            <p className="text-xs text-gray-400">SEPA</p>
+                        </div>
+                        <span className="absolute top-2 right-2 rounded bg-gray-200 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-gray-500">
+                            Soon
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             {/* Email */}
             <div className="card-panel mb-6">
                 <label className="block text-gray-700 text-sm font-medium mb-2">
@@ -319,13 +363,15 @@ const BuyPage = () => {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                         </svg>
-                        Proceed to Checkout
+                        {paymentMethod === 'card' ? 'Proceed to Checkout' : 'Pay via Bank Transfer'}
                     </>
                 )}
             </button>
 
             <p className="text-gray-400 text-xs text-center mt-4">
-                Payments processed securely via Stripe. BTC assigned after payment confirmation.
+                {paymentMethod === 'card'
+                    ? 'Payments processed securely via Stripe. BTC assigned after payment confirmation.'
+                    : 'SEPA bank transfer. BTC assigned after transfer is confirmed.'}
             </p>
         </div>
     );

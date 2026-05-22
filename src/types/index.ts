@@ -43,6 +43,7 @@ export interface CreateCardRequest {
     items: OrderItem[];
     fiat_currency: FiatCurrency;
     purchase_email: string;
+    payment_method: string,
     user_id?: string;
 }
 

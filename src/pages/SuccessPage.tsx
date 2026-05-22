@@ -1,15 +1,62 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../Store';
 import LoadingSpinner from '../components/LoadingSpinner';
+import api from '../Api';
+import { CreatedCard } from '../types';
+
+interface SessionResponse {
+    payment_status: string;
+    cards: CreatedCard[];
+}
+
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 90000;
 
 const SuccessPage = () => {
     const [searchParams] = useSearchParams();
     const sessionId = searchParams.get('session_id');
     const [copied, setCopied] = useState<string | null>(null);
+    const [polledCards, setPolledCards] = useState<CreatedCard[] | null>(null);
+    const [pollError, setPollError] = useState<string | null>(null);
+    const pollStartRef = useRef<number>(Date.now());
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const lastPurchase = useSelector((s: RootState) => s.appRootReducer.lastPurchase);
+
+    // Poll backend for payment confirmation when lastPurchase is unavailable.
+    useEffect(() => {
+        if (!sessionId || (lastPurchase && lastPurchase.cards.length > 0)) return;
+
+        pollStartRef.current = Date.now();
+
+        const poll = async () => {
+            if (Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
+                clearInterval(intervalRef.current!);
+                setPollError('Payment confirmation is taking longer than expected. Check your email for card codes.');
+                return;
+            }
+            try {
+                const res = await api.get<SessionResponse>(`/checkout/sessions/${sessionId}`);
+                if (res.data.payment_status === 'paid' && res.data.cards.length > 0) {
+                    clearInterval(intervalRef.current!);
+                    setPolledCards(res.data.cards);
+                }
+            } catch {
+                // keep polling on transient errors
+            }
+        };
+
+        poll();
+        intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+        return () => clearInterval(intervalRef.current!);
+    }, [sessionId, lastPurchase]);
+
+    const cards: CreatedCard[] =
+        (lastPurchase && lastPurchase.cards.length > 0 ? lastPurchase.cards : null) ??
+        polledCards ??
+        [];
 
     const copyCode = (code: string) => {
         navigator.clipboard.writeText(code).then(() => {
@@ -32,11 +79,11 @@ const SuccessPage = () => {
                 usually takes under a minute.
             </p>
 
-            {lastPurchase && lastPurchase.cards.length > 0 ? (
+            {cards.length > 0 ? (
                 <div className="card-panel text-left mb-8">
-                    <h2 className="text-gray-900 font-semibold mb-4">Your card code{lastPurchase.cards.length > 1 ? 's' : ''}</h2>
+                    <h2 className="text-gray-900 font-semibold mb-4">Your card code{cards.length > 1 ? 's' : ''}</h2>
                     <div className="space-y-3">
-                        {lastPurchase.cards.map((card) => (
+                        {cards.map((card) => (
                             <div
                                 key={card.card_id}
                                 className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-200"
@@ -66,6 +113,10 @@ const SuccessPage = () => {
                         Save these codes! They are your Bitcoin gift cards. Check the balance or redeem
                         at any time from the "Check Balance" page.
                     </p>
+                </div>
+            ) : pollError ? (
+                <div className="card-panel mb-8">
+                    <p className="text-red-500 text-sm">{pollError}</p>
                 </div>
             ) : (
                 <div className="card-panel mb-8">
